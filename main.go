@@ -488,8 +488,7 @@ func main() {
 	container = sqlstore.NewWithDB(db, "sqlite3", dbLog)
 	
 	// Ensure WhatsApp tables are created by attempting to get/create device
-	var deviceStore *sqlstore.Device
-	deviceStore, err = container.GetFirstDevice(context.Background())
+	deviceStore, err := container.GetFirstDevice(context.Background())
 	if err != nil {
 		// If the error is about missing table, create a new device instead
 		log.Infof("No existing device found, creating new device: %v", err)
