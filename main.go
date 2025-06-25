@@ -247,7 +247,11 @@ func executeMessageQuery(query string, args ...interface{}) ([]map[string]interf
 		}
 
 		// Convert timestamp to IST string
-		ist, _ := time.LoadLocation("Asia/Kolkata")
+		ist, err := time.LoadLocation("Asia/Kolkata")
+		if err != nil {
+			// Fallback to UTC if IST is not available
+			ist = time.UTC
+		}
 		formattedTime := time.Unix(timestamp, 0).In(ist).Format("Mon, 02 Jan 2006 15:04:05 MST")
 
 		parsedSenderJID, _ := types.ParseJID(sender)
