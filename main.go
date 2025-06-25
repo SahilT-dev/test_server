@@ -495,7 +495,7 @@ func main() {
 		deviceStore = container.NewDevice()
 		
 		// Try to save the new device to ensure tables are created
-		if saveErr := deviceStore.Save(); saveErr != nil {
+		if saveErr := deviceStore.Save(context.Background()); saveErr != nil {
 			log.Errorf("Failed to save new device (this may be expected on first run): %v", saveErr)
 		}
 	}
