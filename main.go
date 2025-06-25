@@ -491,14 +491,17 @@ func main() {
 	// Initialize WhatsApp store container
 	container = sqlstore.NewWithDB(db, "sqlite3", dbLog)
 	
+	// Ensure database schema is up to date and tables are created
+	if err := container.Upgrade(context.Background()); err != nil {
+		log.Warnf("Failed to upgrade database schema: %v", err)
+	}
+	
 	// Ensure WhatsApp tables are created by attempting to get/create device
 	deviceStore, err := container.GetFirstDevice(context.Background())
 	if err != nil {
 		// If the error is about missing table, create a new device instead
 		log.Infof("No existing device found, creating new device: %v", err)
 		deviceStore = container.NewDevice()
-		// Note: We don't save the device here as it needs to be paired first.
-		// The WhatsApp library will automatically save it after successful pairing.
 	}
 
 	client = whatsmeow.NewClient(deviceStore, waLog.Stdout("Client", "INFO", true))
