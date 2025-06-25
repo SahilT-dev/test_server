@@ -475,9 +475,12 @@ func main() {
 
 	container = sqlstore.NewWithDB(db, "sqlite3", dbLog)
 
+	// Try to get first device, but handle the case where none exists yet
 	deviceStore, err := container.GetFirstDevice(context.Background())
 	if err != nil {
-		panic(fmt.Sprintf("Failed to get device from store: %v", err))
+		// If the error is about missing table, create a new device instead
+		log.Infof("No existing device found, creating new device: %v", err)
+		deviceStore = container.NewDevice()
 	}
 
 	client = whatsmeow.NewClient(deviceStore, waLog.Stdout("Client", "INFO", true))
