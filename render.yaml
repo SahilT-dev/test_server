@@ -1,0 +1,16 @@
+# Render Configuration for WhatsApp Server
+services:
+  - type: web
+    name: whatsapp-server
+    runtime: go
+    buildCommand: "chmod +x build.sh && ./build.sh"
+    startCommand: "./main"
+    envVars:
+      - key: DUMMY_AGENT_BASE_URL
+        value: https://your-agent-domain.onrender.com
+      - key: PORT
+        value: 8080
+    disk:
+      name: whatsapp-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
