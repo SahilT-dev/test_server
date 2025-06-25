@@ -64,6 +64,10 @@ func eventHandler(evt interface{}) {
 	switch v := evt.(type) {
 	case *events.Connected:
 		fmt.Println("✅ Login successful")
+		if client != nil && client.Store != nil && client.Store.ID != nil {
+			fmt.Printf("📱 Device JID: %s\n", client.Store.ID.String())
+			fmt.Println("💾 Device data will be persisted automatically")
+		}
 		postJSON(agentBaseURL+"/api/status", map[string]string{"status": "logged_in"})
 	case *events.Disconnected:
 		fmt.Println("🔌 Disconnected")
@@ -493,11 +497,8 @@ func main() {
 		// If the error is about missing table, create a new device instead
 		log.Infof("No existing device found, creating new device: %v", err)
 		deviceStore = container.NewDevice()
-		
-		// Try to save the new device to ensure tables are created
-		if saveErr := deviceStore.Save(context.Background()); saveErr != nil {
-			log.Errorf("Failed to save new device (this may be expected on first run): %v", saveErr)
-		}
+		// Note: We don't save the device here as it needs to be paired first.
+		// The WhatsApp library will automatically save it after successful pairing.
 	}
 
 	client = whatsmeow.NewClient(deviceStore, waLog.Stdout("Client", "INFO", true))
