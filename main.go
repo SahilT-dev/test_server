@@ -461,26 +461,44 @@ func main() {
 	}
 	dbLog := waLog.Stdout("Database", "INFO", true)
 
+	// Ensure data directory exists
+	if err := os.MkdirAll("data", 0755); err != nil {
+		log.Warnf("Failed to create data directory: %v", err)
+	}
+
 	var err error
-	db, err = sql.Open("sqlite3", "file:whatsapp.db?_foreign_keys=on")
+	// Use data directory for database file
+	db, err = sql.Open("sqlite3", "file:data/whatsapp.db?_foreign_keys=on&_journal_mode=WAL")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to open database: %v", err))
 	}
 	defer db.Close()
 
-	// Make sure the table is created before it's used
+	// Test database connection
+	if err = db.Ping(); err != nil {
+		panic(fmt.Sprintf("Failed to ping database: %v", err))
+	}
+
+	// Make sure the messages table is created before it's used
 	if err := createMessagesTable(); err != nil {
 		panic(fmt.Sprintf("Failed to create messages table: %v", err))
 	}
 
+	// Initialize WhatsApp store container
 	container = sqlstore.NewWithDB(db, "sqlite3", dbLog)
-
-	// Try to get first device, but handle the case where none exists yet
-	deviceStore, err := container.GetFirstDevice(context.Background())
+	
+	// Ensure WhatsApp tables are created by attempting to get/create device
+	var deviceStore *sqlstore.Device
+	deviceStore, err = container.GetFirstDevice(context.Background())
 	if err != nil {
 		// If the error is about missing table, create a new device instead
 		log.Infof("No existing device found, creating new device: %v", err)
 		deviceStore = container.NewDevice()
+		
+		// Try to save the new device to ensure tables are created
+		if saveErr := deviceStore.Save(); saveErr != nil {
+			log.Errorf("Failed to save new device (this may be expected on first run): %v", saveErr)
+		}
 	}
 
 	client = whatsmeow.NewClient(deviceStore, waLog.Stdout("Client", "INFO", true))
