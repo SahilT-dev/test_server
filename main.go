@@ -35,6 +35,7 @@ var (
 	serverBaseURL string
 	serverPort   string
 	mediaMap     sync.Map
+	startTime    time.Time
 )
 
 type MessageContent struct {
@@ -386,6 +387,57 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func handleHealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	status := map[string]interface{}{
+		"status": "healthy",
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"server": "WhatsApp Server",
+		"version": "1.0.0",
+	}
+	
+	// Add WhatsApp connection status
+	if client != nil && client.IsConnected() {
+		status["whatsapp_connected"] = true
+		if client.Store != nil && client.Store.ID != nil {
+			status["device_jid"] = client.Store.ID.String()
+		}
+	} else {
+		status["whatsapp_connected"] = false
+	}
+	
+	// Add database status
+	if db != nil {
+		if err := db.Ping(); err == nil {
+			status["database_connected"] = true
+		} else {
+			status["database_connected"] = false
+			status["database_error"] = err.Error()
+		}
+	} else {
+		status["database_connected"] = false
+	}
+	
+	json.NewEncoder(w).Encode(status)
+}
+
+func handleStatus(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	uptime := time.Since(startTime)
+	
+	status := map[string]interface{}{
+		"service": "WhatsApp ADK Server",
+		"status": "running",
+		"uptime_seconds": uptime.Seconds(),
+		"uptime_human": uptime.String(),
+		"timestamp": time.Now().UTC().Format(time.RFC3339),
+		"server_url": serverBaseURL,
+		"agent_url": agentBaseURL,
+	}
+	
+	json.NewEncoder(w).Encode(status)
+}
+
 func postJSON(url string, data interface{}) {
 	body, err := json.Marshal(data)
 	if err != nil {
@@ -437,9 +489,18 @@ func storeMessage(msgID string, chatJID, senderJID types.JID, content []byte, ti
 
 func startAPIServer() {
 	router := mux.NewRouter()
+	
+	// Health and status endpoints
+	router.HandleFunc("/health", handleHealthCheck).Methods("GET")
+	router.HandleFunc("/status", handleStatus).Methods("GET")
+	router.HandleFunc("/", handleStatus).Methods("GET") // Root endpoint also shows status
+	
+	// API endpoints
 	router.HandleFunc("/api/send", handleSendMessage).Methods("POST")
 	router.HandleFunc("/api/messages", handleGetMessages).Methods("GET")
 	router.HandleFunc("/api/download/{messageID}", handleDownload).Methods("GET")
+	router.HandleFunc("/api/health", handleHealthCheck).Methods("GET")
+	router.HandleFunc("/api/status", handleStatus).Methods("GET")
 	
 	// Use environment variables for server configuration
 	serverPort = os.Getenv("PORT")
@@ -459,6 +520,8 @@ func startAPIServer() {
 }
 
 func main() {
+	startTime = time.Now() // Initialize start time for uptime tracking
+	
 	log := waLog.Stdout("Main", "INFO", true)
 	if err := godotenv.Load(); err != nil {
 		log.Warnf("Could not load .env file, relying on environment variables: %v", err)
