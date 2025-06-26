@@ -34,10 +34,76 @@ PORT=8080
 
 ## API Endpoints
 
+### Core WhatsApp API
 - `GET /api/qr` - Get QR code for WhatsApp login
 - `POST /api/send` - Send message to WhatsApp
 - `GET /api/messages` - Get received messages
 - `GET /api/download/{messageID}` - Download media files
+
+### Health & Monitoring
+- `GET /health` - Health check endpoint with connection status
+- `GET /status` - Server status with uptime and configuration
+- `GET /` - Root endpoint (same as `/status`)
+- `GET /api/health` - Alternative health check endpoint
+- `GET /api/status` - Alternative status endpoint
+
+#### Health Check Response Example
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-06-25T20:30:15Z",
+  "server": "WhatsApp Server",
+  "version": "1.0.0",
+  "whatsapp_connected": true,
+  "device_jid": "918384884150:9@s.whatsapp.net",
+  "database_connected": true
+}
+```
+
+#### Status Response Example
+```json
+{
+  "service": "WhatsApp ADK Server",
+  "status": "running",
+  "uptime_seconds": 3600.5,
+  "uptime_human": "1h0m0.5s",
+  "timestamp": "2025-06-25T20:30:15Z",
+  "server_url": "https://test-server-481n.onrender.com",
+  "agent_url": "https://xxx.ngrok.io"
+}
+```
+
+### Keep-Alive for Render Free Tier
+
+To prevent the server from sleeping on Render's free tier, set up monitoring:
+
+#### Option 1: UptimeRobot (Recommended)
+1. Sign up at [UptimeRobot](https://uptimerobot.com/)
+2. Add monitor: `https://your-server.onrender.com/health`
+3. Set interval to 5 minutes
+
+#### Option 2: GitHub Actions
+Create `.github/workflows/keep-alive.yml`:
+```yaml
+name: Keep Server Alive
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Every 10 minutes
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Server
+        run: |
+          curl -f https://your-server.onrender.com/health
+          curl -f https://your-server.onrender.com/status
+```
+
+#### Option 3: Simple Cron Job
+```bash
+# Add to your crontab
+*/10 * * * * curl -s https://your-server.onrender.com/health > /dev/null
+```
 
 ## Local Development
 
